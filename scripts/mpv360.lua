@@ -90,7 +90,7 @@ local function update_params()
     local eps = 1e-6
     config.roll = clamp(normalize(config.roll), -math.pi + eps, math.pi - eps)
     config.pitch = clamp(config.pitch, -math.pi / 2, math.pi / 2)
-    config.yaw = clamp(config.yaw, -math.pi, math.pi)
+    config.yaw = clamp(normalize(config.yaw), -math.pi, math.pi)
     config.fov = clamp(config.fov, eps, math.pi - eps)
 
     if not config.enabled then
