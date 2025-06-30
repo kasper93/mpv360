@@ -29,6 +29,7 @@ To enable keybindings:
 
 ## Usage
 
-- Press configured toggle key to enable/disable 360° mode
-- Ctrl+Click to enable mouse look, ESC or Ctrl+Click to exit
-- Use configured keys for camera control
+- Press configured `toggle` key (default: `Ctrl+e`) to enable/disable 360° mode
+- Press `show-help` (default: `Ctrl+t`) to see all controls
+- `Ctrl+Left Click` to enable mouse look, `ESC` or `Ctrl+Left Click` to exit
+- Use configured keys for camera control (default: `Ctrl+<arrows>`)
