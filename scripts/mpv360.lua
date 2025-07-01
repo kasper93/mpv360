@@ -45,6 +45,7 @@ local config = {
     input_projection = 0,               -- 0=equirectangular, 1=dual_fisheye,
                                         -- 2=dual_hequirectangular, 3=hequirectangular
     eye = 0,                            -- 0=left, 1=right (for dual formats)
+    fisheye_fov = math.rad(180),        -- fisheye fov (0 to 2π]
     sampling = 0,                       -- 0=linear, 1=mitchell, 2=lanczos
 
     shader_path = mp.command_native({"expand-path", "~~/shaders/mpv360.glsl"}),
@@ -53,7 +54,8 @@ local config = {
     mouse_sensitivity = math.rad(0.2),  -- Mouse look sensitivity
 
     invert_keyboard = false,            -- Invert keyboard controls
-    step = math.rad(0.75),              -- Step size for keyboard movement
+    step = math.rad(0.75),              -- Step for keyboard controls
+    fisheye_fov_step = math.rad(10),    -- Step for fisheye FOV adjustment
 
     enabled = false,                    -- Start with 360° mode enabled
     show_values = true,                 -- Show camera orientation on change
@@ -91,13 +93,20 @@ local is_dual_eye = function()
            config.input_projection == 4
 end
 
+local is_fisheye = function()
+    return config.input_projection == 1
+end
+
 local function show_values()
     if not config.show_values then
         return
     end
     local eye = is_dual_eye() and " | Eye: " .. (config.eye == 0 and "Left" or "Right") or ""
+    local fisheye_fov = is_fisheye()
+                        and string.format(" | Fisheye FOV: %.0f°", math.deg(config.fisheye_fov))
+                        or ""
     local info = string.format(
-        "Proj: %s" ..  eye .. " | Sampling: %s\n" ..
+        "Proj: %s" ..  fisheye_fov .. eye .. " | Sampling: %s\n" ..
         "Yaw: %.1f° | Pitch: %.1f° | Roll: %.1f° | FOV: %.1f°",
         projection_names[config.input_projection] or "N/A",
         sampling_names[config.sampling] or "N/A",
@@ -130,6 +139,7 @@ local function update_params()
 
     config.input_projection = clamp(config.input_projection, 0, #projection_names)
     config.eye = clamp(config.eye, 0, #eye_names)
+    config.fisheye_fov = clamp(config.fisheye_fov, eps, 2 * math.pi)
     config.sampling = clamp(config.sampling, 0, #sampling_names)
 
     if not config.enabled then
@@ -138,9 +148,9 @@ local function update_params()
 
     local params = string.format(
         "mpv360/fov=%f,mpv360/yaw=%f,mpv360/pitch=%f,mpv360/roll=%f," ..
-        "mpv360/input_projection=%d,mpv360/eye=%d,mpv360/sampling=%d",
+        "mpv360/input_projection=%d,mpv360/fisheye_fov=%f,mpv360/eye=%d,mpv360/sampling=%d",
         config.fov, config.yaw, config.pitch, config.roll,
-        config.input_projection, config.eye, config.sampling
+        config.input_projection, config.fisheye_fov, config.eye, config.sampling
     )
     mp.commandv("no-osd", "change-list", "glsl-shader-opts", "add", params)
     show_values()
@@ -277,6 +287,8 @@ local function show_help()
         "• Decrease FOV: " .. get_key("fov-decrease"),
         "",
         "• Cycle projection: " .. get_key("cycle-projection"),
+        "• Increase Fisheye FOV: " .. get_key("fisheye-fov-increase"),
+        "• Decrease Fisheye FOV: " .. get_key("fisheye-fov-decrease"),
         "• Switch eye: " .. get_key("switch-eye"),
         "• Cycle sampling: " .. get_key("cycle-sampling"),
         "",
@@ -311,6 +323,12 @@ commands = {
     end,
     ["cycle-projection"] = function ()
         config.input_projection = (config.input_projection + 1) % (#projection_names + 1)
+    end,
+    ["fisheye-fov-increase"] = function ()
+        config.fisheye_fov = config.fisheye_fov + config.fisheye_fov_step
+    end,
+    ["fisheye-fov-decrease"] = function ()
+        config.fisheye_fov = config.fisheye_fov - config.fisheye_fov_step
     end,
     ["switch-eye"] = function ()
         if is_dual_eye() then

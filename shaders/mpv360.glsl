@@ -35,6 +35,12 @@ dual_vert_equirectangular
 left
 right
 
+//!PARAM fisheye_fov
+//!TYPE float
+//!MINIMUM 1e-6
+//!MAXIMUM 6.2831853071795864
+3.1415926535897932
+
 //!PARAM sampling
 //!TYPE ENUM int
 linear
@@ -134,14 +140,11 @@ mat3 rot_roll = mat3(
 );
 
 vec2 sample_dual_fisheye(vec3 dir) {
-    if (dir.z < 0.0)
-        return vec2(-1000.0);
-
     dir = normalize(dir);
-    float theta = acos(abs(dir.z));
+    float theta = acos(dir.z);
     float phi = atan(dir.y, dir.x);
 
-    float r = theta / (M_PI * 0.5);
+    float r = theta / (fisheye_fov * 0.5);
     if (r > 1.0)
         return vec2(-1000.0);
 
