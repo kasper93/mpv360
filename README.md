@@ -2,7 +2,15 @@
 
 ## Interactive 360° Video Viewer for mpv
 
-This script enables interactive viewing of 360° videos in the [mpv](https://mpv.io/) media player. It supports equirectangular projection with full camera control through mouse and keyboard inputs.
+This script enables interactive viewing of 360° videos in the [mpv](https://mpv.io/) media player. It supports multiple projection formats (equirectangular, dual fisheye, dual half-equirectangular, half-equirectangular) with full camera control through mouse and keyboard inputs.
+
+## Features
+
+- Equirectangular, Dual Fisheye, Dual Half-Equirectangular, Half-Equirectangular
+- Six degrees of freedom movement with mouse look and keyboard navigation
+- Linear, Mitchell-Netravali and Lanczos filtering
+- Left/right eye selection for dual eye formats
+- GLSL shader for optimal performance
 
 ## Installation
 

@@ -2,8 +2,9 @@
     mpv360.lua - Interactive 360° Video Viewer for mpv
 
     This script enables interactive viewing of 360° videos in mpv media player.
-    It supports equirectangular projection with full camera control through
-    mouse and keyboard inputs.
+    It supports multiple projection formats (equirectangular, dual fisheye,
+    dual half-equirectangular, half-equirectangular) with full camera control
+    through mouse and keyboard inputs.
 
     Installation:
     1. Place the files in the mpv config directory:
@@ -24,10 +25,10 @@
     Usage:
     - Press configured toggle key to enable/disable 360° mode
     - Ctrl+Click to enable mouse look, ESC or Ctrl+Click to exit
-    - Use configured keys for camera control
+    - Use configured keys for camera control and projection switching
 
     Author: Kacper Michajłow <kasper93@gmail.com>
-    Version: 1.0
+    Version: 1.1
     License: MIT
 --]]
 
@@ -40,6 +41,11 @@ local config = {
     pitch = 0.0,                        -- Vertical rotation (-π/2 to π/2)
     roll = 0.0,                         -- Camera tilt (-π to π)
     fov = math.rad(120),                -- Field of view (0 to π)
+
+    input_projection = 0,               -- 0=equirectangular, 1=dual_fisheye,
+                                        -- 2=dual_hequirectangular, 3=hequirectangular
+    eye = 0,                            -- 0=left, 1=right (for dual formats)
+    sampling = 0,                       -- 0=linear, 1=mitchell, 2=lanczos
 
     shader_path = mp.command_native({"expand-path", "~~/shaders/mpv360.glsl"}),
 
@@ -60,12 +66,38 @@ local last_mouse_pos
 local cursor_autohide
 local osc_visibility
 
+local projection_names = {
+    [0] = "Equirectangular",
+    [1] = "Dual Fisheye",
+    [2] = "Dual Half-Equirectangular",
+    [3] = "Half-Equirectangular",
+}
+
+local eye_names = {
+    [0] = "Left",
+    [1] = "Right",
+}
+
+local sampling_names = {
+    [0] = "Linear",
+    [1] = "Mitchell",
+    [2] = "Lanczos",
+}
+
+local is_dual_eye = function()
+    return config.input_projection == 1 or config.input_projection == 2
+end
+
 local function show_values()
     if not config.show_values then
         return
     end
+    local eye = is_dual_eye() and " | Eye: " .. (config.eye == 0 and "Left" or "Right") or ""
     local info = string.format(
+        "Proj: %s" ..  eye .. " | Sampling: %s\n" ..
         "Yaw: %.1f° | Pitch: %.1f° | Roll: %.1f° | FOV: %.1f°",
+        projection_names[config.input_projection] or "N/A",
+        sampling_names[config.sampling] or "N/A",
         math.deg(config.yaw), math.deg(config.pitch), math.deg(config.roll),
         math.deg(config.fov)
     )
@@ -93,15 +125,21 @@ local function update_params()
     config.yaw = clamp(normalize(config.yaw), -math.pi, math.pi)
     config.fov = clamp(config.fov, eps, math.pi - eps)
 
+    config.input_projection = clamp(config.input_projection, 0, #projection_names)
+    config.eye = clamp(config.eye, 0, #eye_names)
+    config.sampling = clamp(config.sampling, 0, #sampling_names)
+
     if not config.enabled then
         return
     end
 
     local params = string.format(
-        "mpv360/fov=%f,mpv360/yaw=%f,mpv360/pitch=%f,mpv360/roll=%f",
-        config.fov, config.yaw, config.pitch, config.roll
+        "mpv360/fov=%f,mpv360/yaw=%f,mpv360/pitch=%f,mpv360/roll=%f," ..
+        "mpv360/input_projection=%d,mpv360/eye=%d,mpv360/sampling=%d",
+        config.fov, config.yaw, config.pitch, config.roll,
+        config.input_projection, config.eye, config.sampling
     )
-    mp.commandv("change-list", "glsl-shader-opts", "add", params)
+    mp.commandv("no-osd", "change-list", "glsl-shader-opts", "add", params)
     show_values()
 end
 
@@ -159,6 +197,8 @@ local function stop_mouse_look()
     end
 
     mp.remove_key_binding("_mpv360_esc")
+    mp.remove_key_binding("_mpv360_wheel_up")
+    mp.remove_key_binding("_mpv360_wheel_down")
 end
 
 local function start_mouse_look()
@@ -187,14 +227,14 @@ end
 
 local function enable()
     stop_mouse_look()
-    update_params()
 
     config.enabled = true
+    update_params()
     mp.command("no-osd change-list glsl-shaders append " .. config.shader_path)
 
     add_key_bindings()
 
-    local msg = "360° mode enabled"
+    local msg = "360° mode enabled - " .. projection_names[config.input_projection]
     if config["show-help"] then
         msg = msg .. " - Press " .. config["show-help"] .. " for help"
     end
@@ -218,12 +258,10 @@ local function show_help()
     local help = {
         "360° Video Controls",
         "",
-        "Mouse Controls:",
         "• Enable mouse look: " .. get_key("toggle-mouse-look"),
         "• Exit mouse look: ESC or " .. get_key("toggle-mouse-look"),
         "• Adjust FOV (in mouse look): Scroll wheel",
         "",
-        "Keyboard Controls:",
         "• Toggle 360° mode: " .. get_key("toggle"),
         "• Reset view: " .. get_key("reset-view"),
         "• Look up: " .. get_key("look-up"),
@@ -234,6 +272,11 @@ local function show_help()
         "• Roll right: " .. get_key("roll-right"),
         "• Increase FOV: " .. get_key("fov-increase"),
         "• Decrease FOV: " .. get_key("fov-decrease"),
+        "",
+        "• Cycle projection: " .. get_key("cycle-projection"),
+        "• Switch eye: " .. get_key("switch-eye"),
+        "• Cycle sampling: " .. get_key("cycle-sampling"),
+        "",
         "• Toggle mouse look: " .. get_key("toggle-mouse-look"),
         "• Show this help: " .. get_key("show-help"),
     }
@@ -262,6 +305,19 @@ commands = {
         config.pitch = initial_pos.pitch
         config.roll = initial_pos.roll
         config.fov = initial_pos.fov
+    end,
+    ["cycle-projection"] = function ()
+        config.input_projection = (config.input_projection + 1) % (#projection_names + 1)
+    end,
+    ["switch-eye"] = function ()
+        if is_dual_eye() then
+            config.eye = (config.eye + 1) % (#eye_names + 1)
+        else
+            mp.msg.warn("Eye selection only available for dual eye formats.")
+        end
+    end,
+    ["cycle-sampling"] = function ()
+        config.sampling = (config.sampling + 1) % (#sampling_names + 1)
     end,
     ["show-help"] = show_help,
 }
