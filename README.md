@@ -9,7 +9,8 @@ This script enables interactive viewing of 360° videos in the [mpv](https://mpv
 - Equirectangular, Dual Fisheye, Dual Half-Equirectangular, Half-Equirectangular
 - Six degrees of freedom movement with mouse look and keyboard navigation
 - Linear, Mitchell-Netravali and Lanczos filtering
-- Left/right eye selection for dual eye formats
+- Left/Right eye selection for dual eye (stereo) formats
+- SBS output (Both eyes) for dual eye (stereo) formats
 - GLSL shader for optimal performance
 
 ## Installation
@@ -41,3 +42,4 @@ To enable keybindings:
 - Press `show-help` (default: `Ctrl+t`) to see all controls
 - `Ctrl+Left Click` to enable mouse look, `ESC` or `Ctrl+Left Click` to exit
 - Use configured keys for camera control (default: `Ctrl+<arrows>`)
+- For SBS output, select `Both` eye (`Ctrl+E` to switch eye).

@@ -34,6 +34,7 @@ dual_vert_equirectangular
 //!TYPE ENUM int
 left
 right
+both
 
 //!PARAM fisheye_fov
 //!TYPE float
@@ -121,6 +122,7 @@ vec4 sample_tex(vec2 coord) {
         return sample_pt(coord);
     }
 }
+
 mat3 rot_yaw = mat3(
     cos(yaw), 0.0, -sin(yaw),
     0.0, 1.0, 0.0,
@@ -139,7 +141,7 @@ mat3 rot_roll = mat3(
     0.0, 0.0, 1.0
 );
 
-vec2 sample_dual_fisheye(vec3 dir) {
+vec2 sample_dual_fisheye(vec3 dir, int source_eye) {
     dir = normalize(dir);
     float theta = acos(dir.z);
     float phi = atan(dir.y, dir.x);
@@ -149,12 +151,12 @@ vec2 sample_dual_fisheye(vec3 dir) {
         return vec2(-1000.0);
 
     vec2 pos = vec2(cos(phi), sin(phi)) * r;
-    if (eye == left)
+    if (source_eye == left)
         return vec2(0.25 + pos.x * 0.25, 0.5 + pos.y * 0.5);
     return vec2(0.75 + pos.x * 0.25, 0.5 + pos.y * 0.5);
 }
 
-vec2 sample_dual_vert_equirectangular(vec3 dir) {
+vec2 sample_dual_vert_equirectangular(vec3 dir, int source_eye) {
     float lon = atan(dir.x, dir.z);
     float lat = asin(dir.y);
 
@@ -162,13 +164,13 @@ vec2 sample_dual_vert_equirectangular(vec3 dir) {
     float v = (lat + M_PI * 0.5) / M_PI;
 
     v *= 0.5;
-    v += (eye == left) ? 0.0 : 0.5;
-    v = clamp(v, (eye == left) ? 0.0 : 0.5, (eye == left) ? 0.5 : 1.0);
+    v += (source_eye == left) ? 0.0 : 0.5;
+    v = clamp(v, (source_eye == left) ? 0.0 : 0.5, (source_eye == left) ? 0.5 : 1.0);
 
     return vec2(u, v);
 }
 
-vec2 sample_dual_half_equirectangular(vec3 dir) {
+vec2 sample_dual_half_equirectangular(vec3 dir, int source_eye) {
     if (dir.z < 0.0)
         return vec2(-1000.0);
 
@@ -178,8 +180,8 @@ vec2 sample_dual_half_equirectangular(vec3 dir) {
     float u = (lon + M_PI * 0.5) / (2.0 * M_PI);
     float v = (lat + M_PI * 0.5) / M_PI;
 
-    u += (eye == left) ? 0.0 : 0.5;
-    u = clamp(u, (eye == left) ? 0.0 : 0.5, (eye == left) ? 0.5 : 1.0);
+    u += (source_eye == left) ? 0.0 : 0.5;
+    u = clamp(u, (source_eye == left) ? 0.0 : 0.5, (source_eye == left) ? 0.5 : 1.0);
 
     return vec2(u, v);
 }
@@ -202,10 +204,17 @@ vec2 sample_equirectangular(vec3 dir) {
     return vec2((lon + M_PI) / (2.0 * M_PI), (lat + M_PI * 0.5) / M_PI);
 }
 
-vec4 hook() {
-    vec2 uv = HOOKED_pos * 2.0 - 1.0;
+bool is_stereo() {
+    return input_projection == dual_fisheye ||
+           input_projection == dual_half_equirectangular ||
+           input_projection == dual_vert_equirectangular;
+}
 
+vec4 render(vec2 uv, int source_eye) {
     float aspect = target_size.x / target_size.y;
+    if (source_eye == both && is_stereo())
+        aspect *= 0.5;
+
     float fov_scale_x = tan(fov * 0.5);
     float fov_scale_y = fov_scale_x / aspect;
 
@@ -216,13 +225,13 @@ vec4 hook() {
     vec2 coord;
     switch (input_projection) {
     case dual_fisheye:
-        coord = sample_dual_fisheye(dir);
+        coord = sample_dual_fisheye(dir, source_eye);
         break;
     case dual_half_equirectangular:
-        coord = sample_dual_half_equirectangular(dir);
+        coord = sample_dual_half_equirectangular(dir, source_eye);
         break;
     case dual_vert_equirectangular:
-        coord = sample_dual_vert_equirectangular(dir);
+        coord = sample_dual_vert_equirectangular(dir, source_eye);
         break;
     case half_equirectangular:
         coord = sample_half_equirectangular(dir);
@@ -236,4 +245,19 @@ vec4 hook() {
         return vec4(0.0, 0.0, 0.0, 1.0);
 
     return sample_tex(coord);
+}
+
+vec4 hook() {
+    vec2 uv = HOOKED_pos;
+
+    if (eye == both && is_stereo()) {
+        int source_eye = (uv.x < 0.5) ? left : right;
+        if (source_eye == right)
+            uv.x -= 0.5;
+        uv.x *= 2.0;
+        uv = uv * 2.0 - 1.0;
+        return render(uv, source_eye);
+    }
+
+    return render(uv * 2.0 - 1.0, eye);
 }

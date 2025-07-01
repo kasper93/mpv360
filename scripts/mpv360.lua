@@ -26,6 +26,7 @@
     - Press configured toggle key to enable/disable 360° mode
     - Ctrl+Click to enable mouse look, ESC or Ctrl+Click to exit
     - Use configured keys for camera control and projection switching
+    - For SBS output, select `Both` eye (Ctrl+E to switch eye).
 
     Author: Kacper Michajłow <kasper93@gmail.com>
     Version: 1.1
@@ -80,6 +81,7 @@ local projection_names = {
 local eye_names = {
     [0] = "Left",
     [1] = "Right",
+    [2] = "Both",
 }
 
 local sampling_names = {
@@ -102,7 +104,7 @@ local function show_values()
     if not config.show_values then
         return
     end
-    local eye = is_dual_eye() and " | Eye: " .. (config.eye == 0 and "Left" or "Right") or ""
+    local eye = is_dual_eye() and " | Eye: " .. eye_names[config.eye] or ""
     local fisheye_fov = is_fisheye()
                         and string.format(" | Fisheye FOV: %.0f°", math.deg(config.fisheye_fov))
                         or ""
