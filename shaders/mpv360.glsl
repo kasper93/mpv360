@@ -134,7 +134,7 @@ mat3 rot_roll = mat3(
 
 vec2 sample_dual_fisheye(vec3 dir) {
     if (dir.z < 0.0)
-        return vec2(-1.0);
+        return vec2(-1000.0);
 
     dir = normalize(dir);
     float theta = acos(abs(dir.z));
@@ -142,7 +142,7 @@ vec2 sample_dual_fisheye(vec3 dir) {
 
     float r = theta / (M_PI * 0.5);
     if (r > 1.0)
-        return vec2(-1.0);
+        return vec2(-1000.0);
 
     vec2 pos = vec2(cos(phi), sin(phi)) * r;
     if (eye == left)
@@ -152,7 +152,7 @@ vec2 sample_dual_fisheye(vec3 dir) {
 
 vec2 sample_dual_half_equirectangular(vec3 dir) {
     if (dir.z < 0.0)
-        return vec2(-1.0);
+        return vec2(-1000.0);
 
     float lon = atan(dir.x, dir.z);
     float lat = asin(dir.y);
@@ -168,7 +168,7 @@ vec2 sample_dual_half_equirectangular(vec3 dir) {
 
 vec2 sample_half_equirectangular(vec3 dir) {
     if (dir.z < 0.0)
-        return vec2(-1.0);
+        return vec2(-1000.0);
 
     float lon = atan(dir.x, dir.z);
     float lat = asin(dir.y);
@@ -211,7 +211,7 @@ vec4 hook() {
         break;
     }
 
-    if (coord.x < 0.0)
+    if (coord.x < -999.0)
         return vec4(0.0, 0.0, 0.0, 1.0);
 
     return sample_tex(coord);
