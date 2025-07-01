@@ -71,6 +71,7 @@ local projection_names = {
     [1] = "Dual Fisheye",
     [2] = "Dual Half-Equirectangular",
     [3] = "Half-Equirectangular",
+    [4] = "Dual Equirectangular (Vert)",
 }
 
 local eye_names = {
@@ -85,7 +86,9 @@ local sampling_names = {
 }
 
 local is_dual_eye = function()
-    return config.input_projection == 1 or config.input_projection == 2
+    return config.input_projection == 1 or
+           config.input_projection == 2 or
+           config.input_projection == 4
 end
 
 local function show_values()

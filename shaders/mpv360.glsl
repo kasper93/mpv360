@@ -28,6 +28,7 @@ equirectangular
 dual_fisheye
 dual_half_equirectangular
 half_equirectangular
+dual_vert_equirectangular
 
 //!PARAM eye
 //!TYPE ENUM int
@@ -150,6 +151,20 @@ vec2 sample_dual_fisheye(vec3 dir) {
     return vec2(0.75 + pos.x * 0.25, 0.5 + pos.y * 0.5);
 }
 
+vec2 sample_dual_vert_equirectangular(vec3 dir) {
+    float lon = atan(dir.x, dir.z);
+    float lat = asin(dir.y);
+
+    float u = (lon + M_PI) / (2.0 * M_PI);
+    float v = (lat + M_PI * 0.5) / M_PI;
+
+    v *= 0.5;
+    v += (eye == left) ? 0.0 : 0.5;
+    v = clamp(v, (eye == left) ? 0.0 : 0.5, (eye == left) ? 0.5 : 1.0);
+
+    return vec2(u, v);
+}
+
 vec2 sample_dual_half_equirectangular(vec3 dir) {
     if (dir.z < 0.0)
         return vec2(-1000.0);
@@ -157,10 +172,10 @@ vec2 sample_dual_half_equirectangular(vec3 dir) {
     float lon = atan(dir.x, dir.z);
     float lat = asin(dir.y);
 
-    float u = (lon + M_PI * 0.5) / M_PI * 0.5;
-    u += (eye == left) ? 0.0 : 0.5;
-
+    float u = (lon + M_PI * 0.5) / (2.0 * M_PI);
     float v = (lat + M_PI * 0.5) / M_PI;
+
+    u += (eye == left) ? 0.0 : 0.5;
     u = clamp(u, (eye == left) ? 0.0 : 0.5, (eye == left) ? 0.5 : 1.0);
 
     return vec2(u, v);
@@ -202,6 +217,9 @@ vec4 hook() {
         break;
     case dual_half_equirectangular:
         coord = sample_dual_half_equirectangular(dir);
+        break;
+    case dual_vert_equirectangular:
+        coord = sample_dual_vert_equirectangular(dir);
         break;
     case half_equirectangular:
         coord = sample_half_equirectangular(dir);
