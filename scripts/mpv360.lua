@@ -67,6 +67,7 @@ local mouse_look_active
 local last_mouse_pos
 local cursor_autohide
 local osc_visibility
+local keepaspect
 
 local projection_names = {
     [0] = "Equirectangular",
@@ -247,6 +248,9 @@ local function enable()
 
     add_key_bindings()
 
+    keepaspect = mp.get_property_native("keepaspect")
+    mp.set_property_bool("keepaspect", false)
+
     local msg = "360° mode enabled - " .. projection_names[config.input_projection]
     if config["show-help"] then
         msg = msg .. " - Press " .. config["show-help"] .. " for help"
@@ -257,6 +261,11 @@ end
 local function disable()
     stop_mouse_look()
     remove_key_bindings()
+
+    if keepaspect ~= nil then
+        mp.set_property_native("keepaspect", keepaspect)
+        keepaspect = nil
+    end
 
     mp.command("no-osd change-list glsl-shaders remove " .. config.shader_path)
 
