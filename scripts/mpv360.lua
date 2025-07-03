@@ -3,7 +3,7 @@
 
     This script enables interactive viewing of 360° videos in mpv media player.
     It supports multiple projection formats (equirectangular, dual fisheye,
-    dual half-equirectangular, half-equirectangular, cylindrical)
+    dual half-equirectangular, half-equirectangular, cylindrical, Equi-Angular Cubemap)
     with full camera control through mouse and keyboard inputs.
 
     Installation:
@@ -29,7 +29,7 @@
     - For SBS output, select `Both` eye (Ctrl+E to switch eye).
 
     Author: Kacper Michajłow <kasper93@gmail.com>
-    Version: 1.2
+    Version: 1.3
     License: MIT
 --]]
 
@@ -77,6 +77,8 @@ local projection_names = {
     [3] = "Half-Equirectangular",
     [4] = "Dual Equirectangular (Vert)",
     [5] = "Cylindrical",
+    [6] = "Equi-Angular Cubemap",
+    [7] = "Dual Equi-Angular Cubemap",
 }
 
 local eye_names = {
@@ -94,7 +96,8 @@ local sampling_names = {
 local is_dual_eye = function()
     return config.input_projection == 1 or
            config.input_projection == 2 or
-           config.input_projection == 4
+           config.input_projection == 4 or
+           config.input_projection == 6
 end
 
 local is_fisheye = function()

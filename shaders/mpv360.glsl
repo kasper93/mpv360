@@ -30,6 +30,8 @@ dual_half_equirectangular
 half_equirectangular
 dual_vert_equirectangular
 cylindrical
+equiangular_cubemap
+dual_equiangular_cubemap
 
 //!PARAM eye
 //!TYPE ENUM int
@@ -142,6 +144,13 @@ mat3 rot_roll = mat3(
     0.0, 0.0, 1.0
 );
 
+bool is_stereo() {
+    return input_projection == dual_fisheye ||
+           input_projection == dual_half_equirectangular ||
+           input_projection == dual_vert_equirectangular ||
+           input_projection == dual_equiangular_cubemap;
+}
+
 vec2 sample_dual_fisheye(vec3 dir, int source_eye) {
     dir = normalize(dir);
     float theta = acos(dir.z);
@@ -211,10 +220,102 @@ vec2 sample_cylindrical(vec3 dir) {
     return (v < -1.0 || v > 1.0) ? vec2(-1000.0) : vec2(u, (v + 1.0) * 0.5);
 }
 
-bool is_stereo() {
-    return input_projection == dual_fisheye ||
-           input_projection == dual_half_equirectangular ||
-           input_projection == dual_vert_equirectangular;
+/*
+ * YouTube Equi-Angular Cubemap (EAC) Projection
+ * <https://blog.google/products/google-ar-vr/bringing-pixels-front-and-center-vr-video>
+ *
+ * This projection maps a 360° video to a cubemap with a 3x2 layout.
+ * With Equi-Angular projection. Cubemap faces are arranged in a 3x2 grid,
+ * such that the top row contains left to right faces, and the bottom row
+ * contains bottom to top faces.
+ *
+ * Each side that is not connected to another side has a 2-pixel border.
+ *
+ * LE = Left Eye, RE = Right Eye, CW/CCW = Clockwise/Counter-clockwise
+ * ─ and │ are 2px borders. Note that faces are rotated such that there is no
+ * border needed between adjacent sides, at least some of them.
+ *
+ * Single Eye (mono) (3×2):
+ * ┌─────────────────────────────────────────┐
+ * │    Left          Front         Right    │
+ * │                                         │
+ * ├─────────────────────────────────────────┤
+ * │   Bottom         Back           Top     │
+ * │  (90° CW)      (90° CW)      (90° CW)   │
+ * └─────────────────────────────────────────┘
+ *
+ * Stereoscopic is basically the same as the mono layout, but rotated 90° CCW,
+ * and stacked side-by-side with the left eye on the left and the right eye on
+ * the right.
+ *
+ * Dual Eye (stereo) (4x3):
+ * ┌─────────────┬─────────────┬─────────────┬─────────────┐
+ * │    Right    │    Top      │    Right    │    Top      │
+ * │  (90° CCW)  │    (LE)     │  (90° CCW)  │    (RE)     │
+ * │    (LE)     │             │    (RE)     │             │
+ * │             │             │             │             │
+ * │    Front    │    Back     │    Front    │    Back     │
+ * │  (90° CCW)  │    (LE)     │  (90° CCW)  │    (RE)     │
+ * │    (LE)     │             │    (RE)     │             │
+ * │             │             │             │             │
+ * │    Left     │   Bottom    │    Left     │   Bottom    │
+ * │  (90° CCW)  │    (LE)     │  (90° CCW)  │    (RE)     │
+ * │    (LE)     │             │    (RE)     │             │
+ * └─────────────┴─────────────┴─────────────┴─────────────┘
+ */
+vec2 sample_equiangular_cubemap(vec3 dir, int source_eye) {
+    vec3 abs_dir = abs(dir);
+    int face;
+    vec3 view;
+
+    if (abs_dir.x >= abs_dir.y && abs_dir.x >= abs_dir.z) {
+        face = (dir.x > 0.0) ? 2 : 0;
+        view = (dir.x > 0.0) ? vec3(-dir.z, dir.y, dir.x)
+                             : vec3( dir.z, dir.y, -dir.x);
+    } else if (abs_dir.y >= abs_dir.z) {
+        face = (dir.y > 0.0) ? 3 : 5;
+        view = (dir.y > 0.0) ? vec3( dir.x, -dir.z, dir.y)
+                             : vec3( dir.x,  dir.z, -dir.y);
+    } else {
+        face = (dir.z > 0.0) ? 1 : 4;
+        view = (dir.z > 0.0) ? vec3( dir.x, dir.y, dir.z)
+                             : vec3(-dir.x, dir.y, -dir.z);
+    }
+
+    // Equi-Angular Projection
+    vec2 uv = vec2(atan(view.x, view.z), atan(view.y, view.z)) * (2.0 / M_PI) + 0.5;
+
+    if (face == 3 || face == 5) {
+        // Rotate top and bottom faces 90° CCW
+        uv = vec2(uv.y, 1.0 - uv.x);
+    } else if (face == 4) {
+        // Rotate back face 90° CW
+        uv = vec2(1.0 - uv.y, uv.x);
+    }
+
+    ivec2 grid = ivec2(face % 3, face / 3);
+    if (is_stereo()) {
+        // Rotate 90° CCW
+        grid = ivec2(grid.y, 2 - grid.x);
+        uv = vec2(uv.y, 1.0 - uv.x);
+        if (source_eye == right)
+            grid.x += 2;
+    }
+
+    // Non-adjacent sides have a 2px border
+    const vec2 border = vec2(2.0) / HOOKED_size;
+
+    vec2 face_size = is_stereo() ?
+        vec2(1.0 / 4.0, (1.0 - 2.0 * border.y) / 3.0) :
+        vec2((1.0 - 2.0 * border.x) / 3.0, 1.0 / 2.0);
+
+    vec2 uv_start = vec2(grid) * face_size;
+    vec2 uv_end = uv_start + face_size;
+
+    uv_start += border;
+    uv_end += is_stereo() ? vec2(-border.x, border.y) : vec2(border.x, -border.y);
+
+    return mix(uv_start, uv_end, uv);
 }
 
 vec4 render(vec2 uv, int source_eye) {
@@ -248,6 +349,10 @@ vec4 render(vec2 uv, int source_eye) {
         break;
     case cylindrical:
         coord = sample_cylindrical(dir);
+        break;
+    case equiangular_cubemap:
+    case dual_equiangular_cubemap:
+        coord = sample_equiangular_cubemap(dir, source_eye);
         break;
     }
 
