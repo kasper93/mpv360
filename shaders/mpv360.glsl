@@ -29,6 +29,7 @@ dual_fisheye
 dual_half_equirectangular
 half_equirectangular
 dual_vert_equirectangular
+cylindrical
 
 //!PARAM eye
 //!TYPE ENUM int
@@ -204,6 +205,12 @@ vec2 sample_equirectangular(vec3 dir) {
     return vec2((lon + M_PI) / (2.0 * M_PI), (lat + M_PI * 0.5) / M_PI);
 }
 
+vec2 sample_cylindrical(vec3 dir) {
+    float u = (atan(dir.x, dir.z) + M_PI) / (2.0 * M_PI);
+    float v = dir.y / length(dir.xz);
+    return (v < -1.0 || v > 1.0) ? vec2(-1000.0) : vec2(u, (v + 1.0) * 0.5);
+}
+
 bool is_stereo() {
     return input_projection == dual_fisheye ||
            input_projection == dual_half_equirectangular ||
@@ -238,6 +245,9 @@ vec4 render(vec2 uv, int source_eye) {
         break;
     case equirectangular:
         coord = sample_equirectangular(dir);
+        break;
+    case cylindrical:
+        coord = sample_cylindrical(dir);
         break;
     }
 
