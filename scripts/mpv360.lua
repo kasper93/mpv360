@@ -93,6 +93,19 @@ local sampling_names = {
     [2] = "Lanczos",
 }
 
+local eps = 1e-6
+local animation_interval = 1/60
+local animations = {
+    fov = {
+        timer = nil,
+        step = math.rad(0.25)
+    },
+    fisheye_fov = {
+        timer = nil,
+        step = math.rad(3.33)
+    }
+}
+
 local is_dual_eye = function()
     return config.input_projection == 1 or
            config.input_projection == 2 or
@@ -123,11 +136,11 @@ local function show_values()
     mp.osd_message(info)
 end
 
-local function update_params()
-    local function clamp(value, min, max)
-        return math.min(math.max(value, min), max)
-    end
+local function clamp(value, min, max)
+    return math.min(math.max(value, min), max)
+end
 
+local function update_params()
     local function normalize(angle)
         while angle > math.pi do
             angle = angle - 2 * math.pi
@@ -138,7 +151,6 @@ local function update_params()
         return angle
     end
 
-    local eps = 1e-6
     config.roll = clamp(normalize(config.roll), -math.pi + eps, math.pi - eps)
     config.pitch = clamp(config.pitch, -math.pi / 2, math.pi / 2)
     config.yaw = clamp(normalize(config.yaw), -math.pi, math.pi)
@@ -245,6 +257,27 @@ local function start_mouse_look()
     mp.add_forced_key_binding("ESC", "_mpv360_esc", stop_mouse_look)
 end
 
+local function animate_fov(fov_type, target)
+    local animation = animations[fov_type]
+    if animation.timer then
+        animation.timer:kill()
+    end
+
+    animation.timer = mp.add_periodic_timer(animation_interval, function()
+        local diff = target - config[fov_type]
+
+        if math.abs(diff) < animation.step then
+            config[fov_type] = target
+            update_params()
+            animation.timer:kill()
+            return
+        end
+
+        config[fov_type] = config[fov_type] + (diff > 0 and animation.step or -animation.step)
+        update_params()
+    end)
+end
+
 local function enable()
     stop_mouse_look()
 
@@ -321,8 +354,14 @@ commands = {
     ["look-right"] = function () config.yaw = config.yaw + config.step end,
     ["roll-left"] = function () config.roll = config.roll - config.step end,
     ["roll-right"] = function () config.roll = config.roll + config.step end,
-    ["fov-increase"] = function () config.fov = config.fov + config.step end,
-    ["fov-decrease"] = function () config.fov = config.fov - config.step end,
+    ["fov-increase"] = function ()
+        target_fov = clamp(config.fov + config.step, eps, math.pi - eps)
+        animate_fov("fov", target_fov)
+    end,
+    ["fov-decrease"] = function ()
+        target_fov = clamp(config.fov - config.step, eps, math.pi - eps)
+        animate_fov("fov", target_fov)
+    end,
     ["toggle-mouse-look"] = function ()
         if mouse_look_active then
             stop_mouse_look()
@@ -340,10 +379,12 @@ commands = {
         config.input_projection = (config.input_projection + 1) % (#projection_names + 1)
     end,
     ["fisheye-fov-increase"] = function ()
-        config.fisheye_fov = config.fisheye_fov + config.fisheye_fov_step
+        target_fisheye_fov = clamp(config.fisheye_fov + config.fisheye_fov_step, eps, 2 * math.pi)
+        animate_fov("fisheye_fov", target_fisheye_fov)
     end,
     ["fisheye-fov-decrease"] = function ()
-        config.fisheye_fov = config.fisheye_fov - config.fisheye_fov_step
+        target_fisheye_fov = clamp(config.fisheye_fov - config.fisheye_fov_step, eps, 2 * math.pi)
+        animate_fov("fisheye_fov", target_fisheye_fov)
     end,
     ["switch-eye"] = function ()
         if is_dual_eye() then
