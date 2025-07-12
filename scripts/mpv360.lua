@@ -136,11 +136,11 @@ local function show_values()
     mp.osd_message(info)
 end
 
-local function update_params()
-    local function clamp(value, min, max)
-        return math.min(math.max(value, min), max)
-    end
+local function clamp(value, min, max)
+    return math.min(math.max(value, min), max)
+end
 
+local function update_params()
     local function normalize(angle)
         while angle > math.pi do
             angle = angle - 2 * math.pi
@@ -355,11 +355,11 @@ commands = {
     ["roll-left"] = function () config.roll = config.roll - config.step end,
     ["roll-right"] = function () config.roll = config.roll + config.step end,
     ["fov-increase"] = function ()
-        target_fov = math.min(config.fov + config.step, math.pi - eps)
+        target_fov = clamp(config.fov + config.step, eps, math.pi - eps)
         animate_fov("fov", target_fov)
     end,
     ["fov-decrease"] = function ()
-        target_fov = math.max(config.fov - config.step, eps)
+        target_fov = clamp(config.fov - config.step, eps, math.pi - eps)
         animate_fov("fov", target_fov)
     end,
     ["toggle-mouse-look"] = function ()
@@ -379,11 +379,11 @@ commands = {
         config.input_projection = (config.input_projection + 1) % (#projection_names + 1)
     end,
     ["fisheye-fov-increase"] = function ()
-        target_fisheye_fov = math.min(config.fisheye_fov + config.fisheye_fov_step, 2 * math.pi)
+        target_fisheye_fov = clamp(config.fisheye_fov + config.fisheye_fov_step, eps, 2 * math.pi)
         animate_fov("fisheye_fov", target_fisheye_fov)
     end,
     ["fisheye-fov-decrease"] = function ()
-        target_fisheye_fov = math.max(config.fisheye_fov - config.fisheye_fov_step, eps)
+        target_fisheye_fov = clamp(config.fisheye_fov - config.fisheye_fov_step, eps, 2 * math.pi)
         animate_fov("fisheye_fov", target_fisheye_fov)
     end,
     ["switch-eye"] = function ()
