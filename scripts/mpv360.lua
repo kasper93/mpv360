@@ -97,7 +97,7 @@ local is_dual_eye = function()
     return config.input_projection == 1 or
            config.input_projection == 2 or
            config.input_projection == 4 or
-           config.input_projection == 6
+           config.input_projection == 7
 end
 
 local is_fisheye = function()
