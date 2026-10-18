@@ -250,7 +250,7 @@ local function enable()
 
     config.enabled = true
     update_params()
-    mp.command("no-osd change-list glsl-shaders append " .. config.shader_path)
+    mp.commandv("no-osd", "change-list", "glsl-shaders", "append", config.shader_path)
 
     add_key_bindings()
 
@@ -273,7 +273,7 @@ local function disable()
         keepaspect = nil
     end
 
-    mp.command("no-osd change-list glsl-shaders remove " .. config.shader_path)
+    mp.commandv("no-osd", "change-list", "glsl-shaders", "remove", config.shader_path)
 
     config.enabled = false
 end
